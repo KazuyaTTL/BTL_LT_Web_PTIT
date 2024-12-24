@@ -17,6 +17,7 @@ import {
     TablePagination,
     TextField,  
     Box, 
+    MenuItem,
 } from "@mui/material"
 import { BackendApi } from "../../client/backend-api"
 import { useUser } from "../../context/user-context"
@@ -26,6 +27,7 @@ export const BooksList = () => {
 
     const [books, setBooks] = useState([]);
     const [searchTerm, setSearchTerm] = useState("")
+    const [categoryFilter, setCategoryFilter] = useState("all")
     const [filteredBooks, setFilteredBooks] = useState([])
     const [borrowedBook, setBorrowedBook] = useState([])
     const [page, setPage] = useState(0)
@@ -45,6 +47,8 @@ export const BooksList = () => {
         setBorrowedBook(books)
     }
 
+
+    
     const deleteBook = () => {
         if (activeBookIsbn && books.length) {
             BackendApi.book.deleteBook(activeBookIsbn).then(({ success }) => {
@@ -55,18 +59,33 @@ export const BooksList = () => {
         }
     }
 
+    const getUniqueCategories = () => {
+        const categories = books.map(book => book.category)
+        return ["all", ...new Set(categories)]
+    }
+    
+
     useEffect(() => {
         fetchBooks().catch(console.error)
         fetchUserBook().catch(console.error)
     }, [user])
 
     useEffect(() => {
-        const results = books.filter(book => 
-            book.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (book.author && book.author.toLowerCase().includes(searchTerm.toLowerCase()))
-        )
+        const results = books.filter(book => {
+            // Kiểm tra match với search text
+            const matchesSearch = 
+                book.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (book.author && book.author.toLowerCase().includes(searchTerm.toLowerCase()))
+            
+            // Kiểm tra match với category
+            const matchesCategory = 
+                categoryFilter === "all" || book.category === categoryFilter
+    
+            // Trả về true nếu thỏa mãn cả 2 điều kiện
+            return matchesSearch && matchesCategory
+        })
         setFilteredBooks(results)
-    }, [searchTerm, books])
+    }, [searchTerm, categoryFilter, books])
 
     return (
         <>
@@ -80,15 +99,33 @@ export const BooksList = () => {
             </div>
 
             {/* Thanh tìm kiếm */}
-            <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
+                {/* Ô tìm kiếm */}
                 <TextField
                     fullWidth
-                    label="Search by book title"
+                    sx={{ flex: 1 }}
+                    label="Search"
                     variant="outlined"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
-            </Box>
+
+                {/* Dropdown chọn category */}
+            <TextField
+                select
+                sx={{ minWidth: 200 }}
+                label="Filter by Category"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                variant="outlined"
+            >
+                {getUniqueCategories().map((category) => (
+                    <MenuItem key={category} value={category}>
+                        {category === "all" ? "All Categories" : category}
+                    </MenuItem>
+                ))}
+            </TextField>
+        </Box>
 
             {filteredBooks.length > 0 ? (
                 <>
